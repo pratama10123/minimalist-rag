@@ -94,23 +94,26 @@ Pengguna ──▶ Pilih kategori ──▶ Pilih file PDF ──▶ Klik "Uploa
 
 Pengguna mengunggah dokumen PDF melalui halaman dashboard (`http://localhost:5000`). File diverifikasi, diberi nama aman, dan disimpan sementara sebelum diproses.
 
-### Langkah 2: Parsing PDF (Docling)
+### Langkah 2: Parsing PDF (Docling + Tesseract OCR)
 
 ```
-PDF ──▶ DocumentConverter.convert() ──▶ export_to_markdown()
-                                           │
-                                           ▼
-                                    Markdown string
-                                           │
-                                           ▼
-                                    extract_document_structure()
-                                           │
-                                           ├── page_map[]     : nomor halaman per paragraf
-                                           ├── headings[]     : daftar heading & posisinya
-                                           └── paragraphs[]   : teks per paragraf
+PDF ──▶ DocumentConverter(PdfFormatOption) ──▶ export_to_markdown()
+           │                                      │
+           │ pipeline_options:                    ▼
+           │   do_ocr = True              Markdown string
+           │   ocr_options:                     │
+           │     lang = ["ind", "eng"]          ▼
+           │     force_full_page_ocr = True  extract_document_structure()
+           │                                      │
+           ▼                                      ├── page_map[]     : nomor halaman
+Tesseract OCR                                     ├── headings[]     : daftar heading
+(engine ocr_ind & tesserocr)                      └── paragraphs[]   : teks per paragraf
 ```
 
-**Docling** (v2.23.0):
+**Docling** (v2.23.0) + **Tesseract OCR** (`tesserocr` 2.8.0):
+- OCR menggunakan engine Tesseract dengan bahasa Indonesia (`ind`) dan Inggris (`eng`).
+- `force_full_page_ocr=True` — OCR diterapkan ke seluruh halaman, bukan hanya area gambar.
+- `TESSDATA_PREFIX` dideteksi otomatis untuk path Ubuntu/Debian.
 - Mempertahankan struktur tabel sebagai Markdown.
 - Gambar/grafik diabaikan karena akurasi ekstraksi dari VLM masih di bawah ambang batas produksi.
 - Metadata struktural (peta halaman, heading) diekstrak untuk konteks chunk nantinya.
@@ -326,6 +329,10 @@ source .venv/bin/activate   # Linux/macOS
 
 # Install dependencies
 pip install -r requirements.txt
+sudo apt update
+sudo apt install tesseract-ocr tesseract-ocr-ind -y
+sudo apt update
+sudo apt install libtesseract-dev libleptonica-dev pkg-config -y
 
 # Preload model embedding (wajib sekali sebelum upload pertama)
 python preload.py
@@ -361,8 +368,9 @@ Lingkungan uji: Ryzen 6000H, 16GB RAM, CPU-only (tanpa GPU)
 | Dokumen | Halaman | Chunk | Parse | Embed | Total | Suhu Maks |
 |---------|---------|-------|-------|-------|-------|-----------|
 | How the Economic Machine Works (Ray Dalio) | 300 | 548 | 7 menit | 11.7 menit | **18.7 menit** | 99°C |
+| BUKU OUD BATAVIA 1935 (OCR) | 50 | 40 | 108.74 dtk (OCR) | 53.5 dtk | **~2.7 menit** | 99°C |
 
-> **Catatan:** Beban CPU berkelanjutan saat embedding mencapai 88-99°C. Ini masih dalam spesifikasi Ryzen 6000 (thermal limit 105°C). Pastikan ventilasi memadai.
+> **Catatan:** Beban CPU berkelanjutan saat embedding mencapai 88-99°C. Ini masih dalam spesifikasi Ryzen 6000 (thermal limit 105°C). Pastikan ventilasi memadai. OCR pada dokumen lama (non-digital) menambah waktu parsing ~2 menit untuk 50 halaman. Suhu konsisten di kisaran yang sama baik dengan maupun tanpa OCR.
 
 ---
 
@@ -385,6 +393,22 @@ chunk_size = 512      # token per chunk
 overlap = 64          # overlap antar chunk berurutan
 ```
 
+### Konfigurasi Tesseract OCR (di `ingest.py`)
+
+```python
+pipeline_options = PdfPipelineOptions()
+pipeline_options.do_ocr = True
+pipeline_options.ocr_options = TesseractOcrOptions(
+    lang=["ind", "eng"],
+    force_full_page_ocr=True,
+)
+```
+
+`TESSDATA_PREFIX` dideteksi otomatis dari:
+- `/usr/share/tesseract-ocr/5/tessdata`
+- `/usr/share/tesseract-ocr/4.00/tessdata`
+- `/usr/share/tessdata`
+
 ---
 
 ## Keterbatasan
@@ -392,6 +416,7 @@ overlap = 64          # overlap antar chunk berurutan
 | Keterbatasan | Alasan |
 |-------------|--------|
 | **Grafik/gambar diabaikan** | VLM (GPT-4o, Gemini, Claude) masih salah interpretasi grafik ekonomi kompleks. Akurasi di bawah ambang produksi. |
+| **OCR hanya id/eng** | Bahasa lain belum didukung. Tambahkan lang pack (`tesseract-ocr-xxx`) untuk bahasa tambahan. |
 | **Tidak ada autentikasi** | Single-user MVP. Akan ditambahkan jika pengguna > 5. |
 | **Tidak ada quota system** | Tidak ada dependensi API berbayar. Akan ditambahkan jika menggunakan layanan billable. |
 | **CPU-only embedding** | Lebih lambat tapi gratis. Akselerasi GPU opsional. |
@@ -418,6 +443,14 @@ minimalist-rag/
 │   ├── app.py                 # Flask dashboard — route API & halaman
 │   ├── ingest.py              # Logika ingestion: parse, chunk, embed, simpan
 │   ├── preload.py             # Pre-download model BGE-M3
+│   ├── sample/                # Dokumen contoh uji & hasil ekstraksi
+│   │   ├── BUKU OUD BATAVIA 1935_50halaman.pdf          # 4.6 MB — scan Belanda 1935, perlu OCR
+│   │   ├── Principles by Ray Dalio_page-0001.pdf        # 84 KB — 1 halaman sampul
+│   │   ├── ray_dalio_how_the_economic_machine_works.pdf # 3.1 MB — 300 halaman digital-born
+│   │   └── results/             # Output Markdown hasil ekstraksi Docling + OCR
+│   │       ├── BUKU_OUD_BATAVIA_1935.md                  # 762 baris — OCR id/eng
+│   │       ├── Principles_by_Ray_Dalio_page-0001.pdf.md  # 47 baris — 1 chunk
+│   │       └── ray_dalio_how_the_economic_machine_works.md # 9.569 baris — 548 chunk
 │   ├── requirements.txt       # Dependensi Python
 │   └── templates/
 │       └── index.html         # HTML dashboard (single page)
