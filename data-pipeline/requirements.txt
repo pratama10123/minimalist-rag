@@ -1,0 +1,11 @@
+llama-index==0.10.68
+docling==2.23.0
+FlagEmbedding==1.2.11
+psycopg2-binary==2.9.10
+pgvector==0.3.6
+python-dotenv==1.0.1
+orjson==3.10.15
+loguru==0.7.3
+# New: Flask web framework
+flask==3.0.0
+flask-wtf==1.2.1

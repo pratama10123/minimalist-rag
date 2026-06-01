@@ -1,0 +1,49 @@
+# docker-compose.yaml
+# Version: PostgreSQL 16 with pgvector for RAG system
+
+services:
+  # ============================================================
+  # 📦 PostgreSQL — data tier, no internet, no host ports
+  # ============================================================
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: rag_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rag_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag_password}
+      POSTGRES_DB: ${POSTGRES_DB:-rag_main}
+    ports:
+      - "5432:5432" # Expose untuk koneksi dari local (optional)
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rag-data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-rag_user} -d ${POSTGRES_DB:-rag_main}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+# ==============================================================
+# Networks
+#
+#  rag-data → db only; internet access BLOCKED
+# ==============================================================
+networks:
+  rag-data:
+    driver: bridge
+    # internal: true # db cannot reach the internet
+
+# ==============================================================
+# Volumes
+# ==============================================================
+volumes:
+  postgres_data:
+    name: rag_postgres_minimalist

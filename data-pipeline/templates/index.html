@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Pipeline Manager - RAG Category Management</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        />
+    </head>
+    <body class="bg-gray-100">
+        <!-- Loading Overlay -->
+        <div
+            id="loadingOverlay"
+            class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+        >
+            <div
+                class="bg-white rounded-lg p-8 shadow-2xl flex flex-col items-center gap-4"
+            >
+                <div
+                    class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"
+                ></div>
+                <p id="loadingText" class="text-gray-700 font-medium">
+                    Memproses...
+                </p>
+                <p id="loadingSubtext" class="text-gray-400 text-sm">
+                    Upload & ingestion dokumen
+                </p>
+            </div>
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="toast" class="fixed top-4 right-4 z-50 hidden">
+            <div
+                id="toastContent"
+                class="rounded-lg px-6 py-3 shadow-lg flex items-center gap-2 text-white"
+            ></div>
+        </div>
+
+        <div class="flex h-screen">
+            <!-- Sidebar: Category List -->
+            <div class="w-80 bg-white border-r flex flex-col shadow-lg">
+                <div
+                    class="p-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                >
+                    <h2 class="text-xl font-bold">🗂️ Pipeline Manager</h2>
+                    <p class="text-sm text-blue-200">
+                        Kelola Kategori & Dokumen
+                    </p>
+                </div>
+
+                <div class="p-4 border-b space-y-2">
+                    <button
+                        id="createCategoryBtn"
+                        class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition flex items-center justify-center gap-2"
+                    >
+                        <i class="fas fa-plus"></i> Kategori Baru
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-2">
+                    <div id="categoryList" class="space-y-2">
+                        <!-- Dynamic category list -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="flex-1 flex flex-col overflow-y-auto">
+                <!-- Category Detail -->
+                <div
+                    id="selectedCategory"
+                    class="bg-white border-b p-4 shadow-sm hidden"
+                >
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3
+                                id="selectedTitle"
+                                class="text-xl font-bold text-gray-800"
+                            ></h3>
+                            <p
+                                id="selectedDescription"
+                                class="text-gray-500 text-sm mt-1"
+                            ></p>
+                            <p
+                                id="selectedSchema"
+                                class="text-xs text-gray-400 mt-1"
+                            ></p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button
+                                id="editCategoryBtn"
+                                class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                            >
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button
+                                id="deleteCategoryBtn"
+                                class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                            >
+                                <i class="fas fa-trash"></i> Hapus
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents Section -->
+                <div class="flex-1 p-6">
+                    <div
+                        id="documentsPanel"
+                        class="bg-white rounded-lg shadow-sm hidden"
+                    >
+                        <div
+                            class="border-b p-4 flex justify-between items-center"
+                        >
+                            <h4 class="font-semibold text-gray-700">
+                                <i
+                                    class="fas fa-file-alt text-blue-500 mr-2"
+                                ></i>
+                                Daftar Dokumen
+                            </h4>
+                            <div class="flex gap-2">
+                                <input
+                                    type="file"
+                                    id="uploadFileInput"
+                                    accept=".pdf"
+                                    class="hidden"
+                                />
+                                <button
+                                    id="uploadDocBtn"
+                                    class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                                >
+                                    <i class="fas fa-upload"></i> Upload PDF
+                                </button>
+                                <button
+                                    id="refreshDocsBtn"
+                                    class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                                >
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div id="documentsList" class="p-4">
+                            <!-- Dynamic documents list -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Create Category -->
+        <div
+            id="createModal"
+            class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+        >
+            <div class="bg-white rounded-lg p-6 w-96">
+                <h3 class="text-xl font-bold mb-4">Buat Kategori Baru</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1"
+                            >Schema Name *</label
+                        >
+                        <input
+                            type="text"
+                            id="newSchemaName"
+                            class="w-full border rounded-lg p-2"
+                            placeholder="contoh: pendidikan"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">
+                            Huruf kecil, underscore, unik
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1"
+                            >Display Name *</label
+                        >
+                        <input
+                            type="text"
+                            id="newDisplayName"
+                            class="w-full border rounded-lg p-2"
+                            placeholder="contoh: Pendidikan"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1"
+                            >Deskripsi</label
+                        >
+                        <textarea
+                            id="newDescription"
+                            rows="2"
+                            class="w-full border rounded-lg p-2"
+                            placeholder="Deskripsi kategori..."
+                        ></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button
+                        class="closeModalBtn px-4 py-2 border rounded-lg hover:bg-gray-50"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        id="confirmCreateBtn"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    >
+                        Buat
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Edit Category -->
+        <div
+            id="editModal"
+            class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+        >
+            <div class="bg-white rounded-lg p-6 w-96">
+                <h3 class="text-xl font-bold mb-4">Edit Kategori</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1"
+                            >Display Name</label
+                        >
+                        <input
+                            type="text"
+                            id="editDisplayName"
+                            class="w-full border rounded-lg p-2"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1"
+                            >Deskripsi</label
+                        >
+                        <textarea
+                            id="editDescription"
+                            rows="2"
+                            class="w-full border rounded-lg p-2"
+                        ></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button
+                        class="closeEditModalBtn px-4 py-2 border rounded-lg hover:bg-gray-50"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        id="confirmEditBtn"
+                        class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+                    >
+                        Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Delete Confirmation -->
+        <div
+            id="deleteModal"
+            class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+        >
+            <div class="bg-white rounded-lg p-6 w-96">
+                <h3 class="text-xl font-bold mb-4 text-red-600">
+                    Hapus Kategori?
+                </h3>
+                <p id="deleteWarning" class="text-gray-600 mb-4"></p>
+                <div class="flex justify-end gap-2">
+                    <button
+                        class="closeDeleteModalBtn px-4 py-2 border rounded-lg hover:bg-gray-50"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        id="confirmDeleteBtn"
+                        class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                    >
+                        Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // State
+            let categories = [];
+            let selectedCategory = null;
+
+            // ------------------------------------------------------------
+            // UI Helpers: Toast & Loading
+            // ------------------------------------------------------------
+            function showToast(message, type = "info") {
+                const toast = document.getElementById("toast");
+                const content = document.getElementById("toastContent");
+                const colors = {
+                    success: "bg-green-500",
+                    error: "bg-red-500",
+                    info: "bg-blue-500",
+                    warning: "bg-yellow-500 text-gray-800",
+                };
+                const icons = {
+                    success: '<i class="fas fa-check-circle"></i>',
+                    error: '<i class="fas fa-exclamation-circle"></i>',
+                    info: '<i class="fas fa-info-circle"></i>',
+                    warning: '<i class="fas fa-exclamation-triangle"></i>',
+                };
+                content.className = `rounded-lg px-6 py-3 shadow-lg flex items-center gap-2 text-white ${colors[type] || colors.info}`;
+                content.innerHTML = `${icons[type] || icons.info} ${message}`;
+                toast.classList.remove("hidden");
+                toast.style.transform = "translateX(0)";
+                setTimeout(() => {
+                    toast.classList.add("hidden");
+                }, 4000);
+            }
+
+            function showLoading(text = "Memproses...", subtext = "") {
+                document
+                    .getElementById("loadingOverlay")
+                    .classList.remove("hidden");
+                document.getElementById("loadingText").textContent = text;
+                document.getElementById("loadingSubtext").textContent = subtext;
+            }
+
+            function hideLoading() {
+                document
+                    .getElementById("loadingOverlay")
+                    .classList.add("hidden");
+            }
+
+            // ------------------------------------------------------------
+            // API Helper
+            // ------------------------------------------------------------
+            async function api(url, options = {}) {
+                try {
+                    const response = await fetch(url, options);
+                    return await response.json();
+                } catch (error) {
+                    console.error("API error:", error);
+                    return { success: false, error: "Network error" };
+                }
+            }
+
+            // ------------------------------------------------------------
+            // Load categories from backend
+            // ------------------------------------------------------------
+            async function loadCategories() {
+                const data = await api("/api/categories");
+                if (data.success) {
+                    categories = data.categories;
+                    renderCategoryList();
+                    // Jika masih ada yang terseleksi, refresh detailnya
+                    if (selectedCategory) {
+                        const stillExists = categories.find(
+                            (c) =>
+                                c.schema_name === selectedCategory.schema_name,
+                        );
+                        if (stillExists) {
+                            selectCategory(stillExists.schema_name);
+                        } else {
+                            clearSelection();
+                        }
+                    }
+                } else {
+                    showToast("Gagal memuat kategori: " + data.error, "error");
+                }
+            }
+
+            function renderCategoryList() {
+                const container = document.getElementById("categoryList");
+                container.innerHTML = categories
+                    .map((cat) => {
+                        const active =
+                            selectedCategory &&
+                            selectedCategory.schema_name === cat.schema_name
+                                ? "ring-2 ring-blue-500 bg-blue-50"
+                                : "";
+                        return `
+                    <div class="bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition cursor-pointer category-item ${active}"
+                         data-schema="${cat.schema_name}">
+                        <div class="flex items-center justify-between">
+                            <div class="font-semibold text-gray-800">${cat.display_name}</div>
+                            <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">${cat.document_count}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">${cat.schema_name}</div>
+                        <div class="text-xs text-gray-400 mt-1 truncate">${cat.description || "-"}</div>
+                    </div>
+                `;
+                    })
+                    .join("");
+
+                // Attach click events
+                document.querySelectorAll(".category-item").forEach((el) => {
+                    el.addEventListener("click", () => {
+                        selectCategory(el.dataset.schema);
+                    });
+                });
+            }
+
+            function selectCategory(schemaName) {
+                selectedCategory = categories.find(
+                    (c) => c.schema_name === schemaName,
+                );
+                if (!selectedCategory) return;
+
+                document
+                    .getElementById("selectedCategory")
+                    .classList.remove("hidden");
+                document.getElementById("selectedTitle").innerText =
+                    selectedCategory.display_name;
+                document.getElementById("selectedDescription").innerText =
+                    selectedCategory.description || "Tidak ada deskripsi";
+                document.getElementById("selectedSchema").innerHTML =
+                    `<i class="fas fa-database"></i> Schema: ${selectedCategory.schema_name}`;
+
+                loadDocuments(schemaName);
+                renderCategoryList(); // re-highlight
+            }
+
+            function clearSelection() {
+                selectedCategory = null;
+                document
+                    .getElementById("selectedCategory")
+                    .classList.add("hidden");
+                document
+                    .getElementById("documentsPanel")
+                    .classList.add("hidden");
+                renderCategoryList();
+            }
+
+            // ------------------------------------------------------------
+            // Documents
+            // ------------------------------------------------------------
+            async function loadDocuments(schemaName) {
+                const panel = document.getElementById("documentsPanel");
+                const container = document.getElementById("documentsList");
+                panel.classList.remove("hidden");
+                container.innerHTML =
+                    '<div class="text-center text-gray-400 py-4">Memuat...</div>';
+
+                const data = await api(`/api/documents/${schemaName}`);
+                if (!data.success) {
+                    container.innerHTML = `<div class="text-red-500">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                const docs = data.documents;
+                if (docs.length === 0) {
+                    container.innerHTML = `
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-folder-open text-4xl mb-2"></i>
+                        <p>Belum ada dokumen</p>
+                        <p class="text-sm">Upload PDF untuk mulai mengisi kategori ini</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                container.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left p-2">Nama File</th>
+                            <th class="text-left p-2">Chunks</th>
+                            <th class="text-left p-2">Upload Date</th>
+                            <th class="text-left p-2">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${docs
+                            .map(
+                                (doc) => `
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-2"><i class="fas fa-file-pdf text-red-500 mr-2"></i>${doc.file_name}</td>
+                                <td class="p-2">${doc.chunks} chunks</td>
+                                <td class="p-2">${doc.uploaded_at || "-"}</td>
+                                <td class="p-2">
+                                    <button class="delete-doc-btn text-red-500 hover:text-red-700" data-filename="${doc.file_name}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `,
+                            )
+                            .join("")}
+                    </tbody>
+                </table>
+            `;
+
+                // Attach delete handlers
+                document.querySelectorAll(".delete-doc-btn").forEach((btn) => {
+                    btn.addEventListener("click", async (e) => {
+                        e.stopPropagation();
+                        const filename = btn.dataset.filename;
+                        if (confirm(`Hapus semua chunk dari "${filename}"?`)) {
+                            const result = await api(
+                                `/api/documents/${selectedCategory.schema_name}/${encodeURIComponent(filename)}`,
+                                { method: "DELETE" },
+                            );
+                            if (result.success) {
+                                showToast(result.message, "success");
+                                loadDocuments(selectedCategory.schema_name);
+                                loadCategories(); // refresh count
+                            } else {
+                                showToast("Gagal: " + result.error, "error");
+                            }
+                        }
+                    });
+                });
+            }
+
+            // ------------------------------------------------------------
+            // Upload File
+            // ------------------------------------------------------------
+            async function uploadFile(file) {
+                if (!selectedCategory) {
+                    showToast("Pilih kategori terlebih dahulu!", "warning");
+                    return;
+                }
+
+                showLoading(
+                    "Mengupload & memproses dokumen...",
+                    `${file.name} \u2192 ${selectedCategory.display_name}`,
+                );
+
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("category", selectedCategory.schema_name);
+
+                try {
+                    const result = await api("/api/ingest", {
+                        method: "POST",
+                        body: formData,
+                    });
+
+                    // Tampilkan response lengkap untuk debugging
+                    console.log(
+                        "Full response:",
+                        JSON.stringify(result, null, 2),
+                    );
+
+                    if (result.status === "success") {
+                        showToast(
+                            `\u2705 ${file.name}: ${result.chunks_inserted} chunk berhasil disimpan`,
+                            "success",
+                        );
+                        loadDocuments(selectedCategory.schema_name);
+                        loadCategories();
+                    } else {
+                        // Tampilkan error detail
+                        showToast(
+                            `\u274c Gagal: ${result.error || "Unknown error"}`,
+                            "error",
+                        );
+                        console.error("Ingestion error:", result);
+                    }
+                } catch (err) {
+                    console.error("Network error:", err);
+                    showToast(
+                        "Terjadi kesalahan jaringan: " + err.message,
+                        "error",
+                    );
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            // ------------------------------------------------------------
+            // Category Modals
+            // ------------------------------------------------------------
+            function showModal(id) {
+                document.getElementById(id).classList.remove("hidden");
+                document.getElementById(id).classList.add("flex");
+            }
+            function hideModal(id) {
+                document.getElementById(id).classList.add("hidden");
+                document.getElementById(id).classList.remove("flex");
+            }
+
+            // Create
+            document.getElementById("createCategoryBtn").onclick = () =>
+                showModal("createModal");
+            document.getElementById("confirmCreateBtn").onclick = async () => {
+                const schemaName = document
+                    .getElementById("newSchemaName")
+                    .value.trim()
+                    .toLowerCase();
+                const displayName = document
+                    .getElementById("newDisplayName")
+                    .value.trim();
+                const description = document
+                    .getElementById("newDescription")
+                    .value.trim();
+
+                if (!schemaName || !displayName) {
+                    showToast(
+                        "Schema Name dan Display Name wajib diisi!",
+                        "warning",
+                    );
+                    return;
+                }
+                if (!/^[a-z_]+$/.test(schemaName)) {
+                    showToast(
+                        "Schema Name hanya boleh huruf kecil dan underscore!",
+                        "warning",
+                    );
+                    return;
+                }
+
+                const result = await api("/api/categories", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        schema_name: schemaName,
+                        display_name: displayName,
+                        description,
+                    }),
+                });
+
+                if (result.success) {
+                    hideModal("createModal");
+                    showToast(result.message, "success");
+                    document.getElementById("newSchemaName").value = "";
+                    document.getElementById("newDisplayName").value = "";
+                    document.getElementById("newDescription").value = "";
+                    loadCategories();
+                } else {
+                    showToast("Error: " + result.error, "error");
+                }
+            };
+
+            // Edit
+            document.getElementById("editCategoryBtn").onclick = () => {
+                if (!selectedCategory) return;
+                document.getElementById("editDisplayName").value =
+                    selectedCategory.display_name;
+                document.getElementById("editDescription").value =
+                    selectedCategory.description || "";
+                showModal("editModal");
+            };
+            document.getElementById("confirmEditBtn").onclick = async () => {
+                if (!selectedCategory) return;
+                const displayName = document
+                    .getElementById("editDisplayName")
+                    .value.trim();
+                const description = document
+                    .getElementById("editDescription")
+                    .value.trim();
+                if (!displayName) {
+                    showToast("Display Name wajib diisi!", "warning");
+                    return;
+                }
+
+                const result = await api(
+                    `/api/categories/${selectedCategory.schema_name}`,
+                    {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            display_name: displayName,
+                            description,
+                        }),
+                    },
+                );
+
+                if (result.success) {
+                    hideModal("editModal");
+                    showToast(result.message, "success");
+                    loadCategories();
+                } else {
+                    showToast("Error: " + result.error, "error");
+                }
+            };
+
+            // Delete
+            document.getElementById("deleteCategoryBtn").onclick = () => {
+                if (!selectedCategory) return;
+                document.getElementById("deleteWarning").innerHTML =
+                    `Anda yakin ingin menghapus kategori <strong>${selectedCategory.display_name}</strong>?<br><br>
+                 Schema <strong>${selectedCategory.schema_name}</strong> dan semua dokumen akan dihapus permanen.`;
+                showModal("deleteModal");
+            };
+            document.getElementById("confirmDeleteBtn").onclick = async () => {
+                if (!selectedCategory) return;
+                const result = await api(
+                    `/api/categories/${selectedCategory.schema_name}`,
+                    { method: "DELETE" },
+                );
+                if (result.success) {
+                    hideModal("deleteModal");
+                    showToast(result.message, "success");
+                    clearSelection();
+                    loadCategories();
+                } else {
+                    showToast("Error: " + result.error, "error");
+                }
+            };
+
+            // Upload doc button
+            document.getElementById("uploadDocBtn").onclick = () => {
+                if (!selectedCategory) {
+                    showToast("Pilih kategori dulu!", "warning");
+                    return;
+                }
+                document.getElementById("uploadFileInput").click();
+            };
+            document.getElementById("uploadFileInput").onchange = (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    uploadFile(e.target.files[0]);
+                }
+                e.target.value = "";
+            };
+
+            // Refresh docs
+            document.getElementById("refreshDocsBtn").onclick = () => {
+                if (selectedCategory)
+                    loadDocuments(selectedCategory.schema_name);
+            };
+
+            // Close modals
+            document
+                .querySelectorAll(".closeModalBtn")
+                .forEach(
+                    (btn) => (btn.onclick = () => hideModal("createModal")),
+                );
+            document
+                .querySelectorAll(".closeEditModalBtn")
+                .forEach((btn) => (btn.onclick = () => hideModal("editModal")));
+            document
+                .querySelectorAll(".closeDeleteModalBtn")
+                .forEach(
+                    (btn) => (btn.onclick = () => hideModal("deleteModal")),
+                );
+
+            // Close modal on background click
+            window.onclick = (event) => {
+                if (
+                    event.target.classList.contains("fixed") &&
+                    event.target.classList.contains("inset-0")
+                ) {
+                    hideModal("createModal");
+                    hideModal("editModal");
+                    hideModal("deleteModal");
+                }
+            };
+
+            // Initial load
+            loadCategories();
+        </script>
+    </body>
+</html>
