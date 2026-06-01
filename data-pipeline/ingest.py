@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Ingestion module: PDF parsing, embedding, chunking, dan penyimpanan ke PostgreSQL multi‑schema.
+Ingestion module: PDF parsing (dengan dukungan Tesseract OCR), embedding, chunking,
+dan penyimpanan ke PostgreSQL multi‑schema.
 Juga menyediakan fungsi-fungsi manajemen kategori dan dokumen untuk dashboard.
 """
 
@@ -11,7 +12,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import psycopg2
-from docling.document_converter import DocumentConverter
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions, TesseractOcrOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
 from dotenv import load_dotenv
 from FlagEmbedding import FlagModel
 from llama_index.core.node_parser import SentenceSplitter
@@ -23,6 +26,19 @@ from psycopg2.sql import SQL, Identifier
 # Konfigurasi dari environment
 # ----------------------------------------------------------------------
 load_dotenv()
+
+# Set TESSDATA_PREFIX jika belum diset (untuk Tesseract OCR via tesserocr)
+if not os.environ.get("TESSDATA_PREFIX"):
+    # Coba deteksi路径 default di Ubuntu/Debian
+    for candidate in [
+        "/usr/share/tesseract-ocr/5/tessdata",
+        "/usr/share/tesseract-ocr/4.00/tessdata",
+        "/usr/share/tessdata",
+    ]:
+        if os.path.isdir(candidate):
+            os.environ["TESSDATA_PREFIX"] = candidate
+            logger.info(f"TESSDATA_PREFIX diset ke {candidate}")
+            break
 
 DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
 DB_PORT = os.getenv("POSTGRES_PORT", "5432")
@@ -294,9 +310,24 @@ def ingest_document(file_path: str, target_schema: str) -> dict:
                 f"Schema '{target_schema}' tidak ditemukan di public.categories"
             )
 
-        # Parse PDF
-        logger.info("Parsing PDF dengan Docling...")
-        converter = DocumentConverter()
+        # ----------------------------------------------------------------------
+        # Konfigurasi Tesseract OCR
+        # ----------------------------------------------------------------------
+        logger.info("Mengonfigurasi Docling dengan Tesseract OCR (id/en)...")
+        pipeline_options = PdfPipelineOptions()
+        pipeline_options.do_ocr = True
+        pipeline_options.ocr_options = TesseractOcrOptions(
+            lang=["ind", "eng"],
+            force_full_page_ocr=True,
+        )
+
+        converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+            }
+        )
+
+        logger.info("Memulai ekstraksi dokumen...")
         result = converter.convert(file_path)
         markdown_content = result.document.export_to_markdown()
 

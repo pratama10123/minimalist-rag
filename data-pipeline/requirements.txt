@@ -9,3 +9,4 @@ loguru==0.7.3
 # New: Flask web framework
 flask==3.0.0
 flask-wtf==1.2.1
+tesserocr==2.8.0

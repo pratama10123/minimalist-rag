@@ -94,23 +94,26 @@ Pengguna ──▶ Pilih kategori ──▶ Pilih file PDF ──▶ Klik "Uploa
 
 Pengguna mengunggah dokumen PDF melalui halaman dashboard (`http://localhost:5000`). File diverifikasi, diberi nama aman, dan disimpan sementara sebelum diproses.
 
-### Langkah 2: Parsing PDF (Docling)
+### Langkah 2: Parsing PDF (Docling + Tesseract OCR)
 
 ```
-PDF ──▶ DocumentConverter.convert() ──▶ export_to_markdown()
-                                           │
-                                           ▼
-                                    Markdown string
-                                           │
-                                           ▼
-                                    extract_document_structure()
-                                           │
-                                           ├── page_map[]     : nomor halaman per paragraf
-                                           ├── headings[]     : daftar heading & posisinya
-                                           └── paragraphs[]   : teks per paragraf
+PDF ──▶ DocumentConverter(PdfFormatOption) ──▶ export_to_markdown()
+           │                                      │
+           │ pipeline_options:                    ▼
+           │   do_ocr = True              Markdown string
+           │   ocr_options:                     │
+           │     lang = ["ind", "eng"]          ▼
+           │     force_full_page_ocr = True  extract_document_structure()
+           │                                      │
+           ▼                                      ├── page_map[]     : nomor halaman
+Tesseract OCR                                     ├── headings[]     : daftar heading
+(engine ocr_ind & tesserocr)                      └── paragraphs[]   : teks per paragraf
 ```
 
-**Docling** (v2.23.0):
+**Docling** (v2.23.0) + **Tesseract OCR** (`tesserocr` 2.8.0):
+- OCR menggunakan engine Tesseract dengan bahasa Indonesia (`ind`) dan Inggris (`eng`).
+- `force_full_page_ocr=True` — OCR diterapkan ke seluruh halaman, bukan hanya area gambar.
+- `TESSDATA_PREFIX` dideteksi otomatis untuk path Ubuntu/Debian.
 - Mempertahankan struktur tabel sebagai Markdown.
 - Gambar/grafik diabaikan karena akurasi ekstraksi dari VLM masih di bawah ambang batas produksi.
 - Metadata struktural (peta halaman, heading) diekstrak untuk konteks chunk nantinya.
@@ -326,6 +329,10 @@ source .venv/bin/activate   # Linux/macOS
 
 # Install dependencies
 pip install -r requirements.txt
+sudo apt update
+sudo apt install tesseract-ocr tesseract-ocr-ind -y
+sudo apt update
+sudo apt install libtesseract-dev libleptonica-dev pkg-config -y
 
 # Preload model embedding (wajib sekali sebelum upload pertama)
 python preload.py
@@ -385,6 +392,22 @@ chunk_size = 512      # token per chunk
 overlap = 64          # overlap antar chunk berurutan
 ```
 
+### Konfigurasi Tesseract OCR (di `ingest.py`)
+
+```python
+pipeline_options = PdfPipelineOptions()
+pipeline_options.do_ocr = True
+pipeline_options.ocr_options = TesseractOcrOptions(
+    lang=["ind", "eng"],
+    force_full_page_ocr=True,
+)
+```
+
+`TESSDATA_PREFIX` dideteksi otomatis dari:
+- `/usr/share/tesseract-ocr/5/tessdata`
+- `/usr/share/tesseract-ocr/4.00/tessdata`
+- `/usr/share/tessdata`
+
 ---
 
 ## Keterbatasan
@@ -392,6 +415,7 @@ overlap = 64          # overlap antar chunk berurutan
 | Keterbatasan | Alasan |
 |-------------|--------|
 | **Grafik/gambar diabaikan** | VLM (GPT-4o, Gemini, Claude) masih salah interpretasi grafik ekonomi kompleks. Akurasi di bawah ambang produksi. |
+| **OCR hanya id/eng** | Bahasa lain belum didukung. Tambahkan lang pack (`tesseract-ocr-xxx`) untuk bahasa tambahan. |
 | **Tidak ada autentikasi** | Single-user MVP. Akan ditambahkan jika pengguna > 5. |
 | **Tidak ada quota system** | Tidak ada dependensi API berbayar. Akan ditambahkan jika menggunakan layanan billable. |
 | **CPU-only embedding** | Lebih lambat tapi gratis. Akselerasi GPU opsional. |
