@@ -38,9 +38,17 @@ minimalist-rag/
 │   ├── ingest.py         # Docling (OCR) + chunking + embedding + DB
 │   ├── preload.py        # Pre-download BGE-M3 model
 │   ├── requirements.txt
-│   └── templates/
-│   └── .gitignore
-│   └── .env.example
+│   ├── templates/
+│   ├── .gitignore
+│   ├── .env.example
+│   └── sample/           # Dokumen contoh & hasil ekstraksi
+│       ├── BUKU OUD BATAVIA 1935_50halaman.pdf     # 4.6 MB — 50 hal (scan, OCR)
+│       ├── Principles by Ray Dalio_page-0001.pdf   # 84 KB — 1 hal
+│       ├── ray_dalio_how_the_economic_machine_works.pdf  # 3.1 MB — 300 hal
+│       └── results/       # Output Markdown hasil parsing
+│           ├──BUKU_OUD_BATAVIA_1935.md               # 762 baris
+│           ├──Principles_by_Ray_Dalio_page-0001.pdf.md # 47 baris
+│           └──ray_dalio_how_the_economic_machine_works.md # 9.569 baris
 ├── database/
 │   └── init.sql          # PostgreSQL schema + indexes + triggers
 ├── docker-compose.yaml   # PostgreSQL + pgvector container

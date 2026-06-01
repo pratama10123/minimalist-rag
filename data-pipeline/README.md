@@ -443,6 +443,14 @@ minimalist-rag/
 │   ├── app.py                 # Flask dashboard — route API & halaman
 │   ├── ingest.py              # Logika ingestion: parse, chunk, embed, simpan
 │   ├── preload.py             # Pre-download model BGE-M3
+│   ├── sample/                # Dokumen contoh uji & hasil ekstraksi
+│   │   ├── BUKU OUD BATAVIA 1935_50halaman.pdf          # 4.6 MB — scan Belanda 1935, perlu OCR
+│   │   ├── Principles by Ray Dalio_page-0001.pdf        # 84 KB — 1 halaman sampul
+│   │   ├── ray_dalio_how_the_economic_machine_works.pdf # 3.1 MB — 300 halaman digital-born
+│   │   └── results/             # Output Markdown hasil ekstraksi Docling + OCR
+│   │       ├── BUKU_OUD_BATAVIA_1935.md                  # 762 baris — OCR id/eng
+│   │       ├── Principles_by_Ray_Dalio_page-0001.pdf.md  # 47 baris — 1 chunk
+│   │       └── ray_dalio_how_the_economic_machine_works.md # 9.569 baris — 548 chunk
 │   ├── requirements.txt       # Dependensi Python
 │   └── templates/
 │       └── index.html         # HTML dashboard (single page)
