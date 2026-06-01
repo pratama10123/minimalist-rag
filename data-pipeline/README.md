@@ -368,8 +368,9 @@ Lingkungan uji: Ryzen 6000H, 16GB RAM, CPU-only (tanpa GPU)
 | Dokumen | Halaman | Chunk | Parse | Embed | Total | Suhu Maks |
 |---------|---------|-------|-------|-------|-------|-----------|
 | How the Economic Machine Works (Ray Dalio) | 300 | 548 | 7 menit | 11.7 menit | **18.7 menit** | 99°C |
+| BUKU OUD BATAVIA 1935 (OCR) | 50 | 40 | 108.74 dtk (OCR) | 53.5 dtk | **~2.7 menit** | 99°C |
 
-> **Catatan:** Beban CPU berkelanjutan saat embedding mencapai 88-99°C. Ini masih dalam spesifikasi Ryzen 6000 (thermal limit 105°C). Pastikan ventilasi memadai.
+> **Catatan:** Beban CPU berkelanjutan saat embedding mencapai 88-99°C. Ini masih dalam spesifikasi Ryzen 6000 (thermal limit 105°C). Pastikan ventilasi memadai. OCR pada dokumen lama (non-digital) menambah waktu parsing ~2 menit untuk 50 halaman. Suhu konsisten di kisaran yang sama baik dengan maupun tanpa OCR.
 
 ---
 
